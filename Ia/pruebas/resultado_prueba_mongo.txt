@@ -1,0 +1,40 @@
+=== Pruebas MongoDB / IA — ejecución en entorno de desarrollo ===
+Fecha: 2026-04-18
+
+--- 1) Dry-run (sin conexión a Atlas) ---
+Comando: php artisan ia:mongo-init-schemas --dry-run
+Código de salida: 0
+
+Salida:
+Colecciones que se asegurarían en la base "cymDatabase":
+ - actions
+ - action_profiles
+ - attachments
+ - companies
+ - conversation_user
+ - conversations
+ - documents
+ - employees
+ - events
+ - menu_profiles
+ - menus
+ - messages
+ - profiles
+ - selectors
+ - sub_menus
+ - users
+
+--- 2) PHPUnit suite "Ia" ---
+Comando: php artisan test --testsuite=Ia
+Código de salida: 0
+
+Resumen:
+- test_registry_lists_all_sql_mirror_collections: OK (advertencia menor por lectura de .env en entorno).
+- test_artisan_dry_run_does_not_require_mongodb_extension: OK.
+- test_initializer_creates_collections_when_mongodb_configured: SKIP — en esta máquina la extensión PHP "mongodb" no está instalada; con extensión + MONGODB_URI en .env la prueba intentará crear colecciones en Atlas.
+
+--- 3) Creación real en Atlas ---
+No ejecutado aquí (requiere extensión mongodb y URI en .env local). Comando sugerido:
+  php artisan ia:mongo-init-schemas
+
+(NO incluir contraseñas ni URI completas en commits.)
