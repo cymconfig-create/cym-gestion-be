@@ -98,7 +98,7 @@ class CreateUserService extends Service
             return $this->resolve(false, UserConstants::CREATED, $user, Constants::CODE_CREATED);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true,  $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            return $this->resolve(true, UserConstants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 }

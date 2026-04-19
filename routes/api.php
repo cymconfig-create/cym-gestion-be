@@ -37,11 +37,11 @@ Route::group(["middleware" => ["auth:api"]], function () {
 
     Route::group(['prefix' => 'user'], function () {
         Route::get('', [UserController::class, 'all']);
-        Route::get('/{id}', [UserController::class, 'find']);
-        Route::get('/{col}/{id}', [UserController::class, 'findBy']);
+        Route::get('/{id}', [UserController::class, 'find'])->whereNumber('id');
+        Route::get('/{col}/{id}', [UserController::class, 'findBy'])->where('col', '[A-Za-z_]+');
         Route::post('', [UserController::class, 'create']);
-        Route::put('/{id}', [UserController::class, 'update']);
-        Route::delete('/{id}', [UserController::class, 'delete']);
+        Route::put('/{id}', [UserController::class, 'update'])->whereNumber('id');
+        Route::delete('/{id}', [UserController::class, 'delete'])->whereNumber('id');
     });
 
     Route::group(['prefix' => 'profile'], function () {
@@ -91,14 +91,13 @@ Route::group(["middleware" => ["auth:api"]], function () {
 
     Route::group(['prefix' => 'attachment'], function () {
         Route::get('', [AttachmentController::class, 'all']);
-        Route::get('/{id}', [AttachmentController::class, 'find']);
-        Route::post('', [AttachmentController::class, 'create']);
-        Route::get('/{col}/{id}', [AttachmentController::class, 'findByAll']);
         Route::get('/search', [AttachmentController::class, 'findByAllAttributes']);
-        Route::put('/{id}', [AttachmentController::class, 'update']);
-        Route::delete('/{id}', [AttachmentController::class, 'delete']);
-        // Nueva ruta para servir archivos protegidos con la ruta completa
         Route::get('/file/{path}', [AttachmentController::class, 'showFile'])->where('path', '.*');
+        Route::get('/{id}', [AttachmentController::class, 'find'])->whereNumber('id');
+        Route::post('', [AttachmentController::class, 'create']);
+        Route::get('/{col}/{id}', [AttachmentController::class, 'findByAll'])->where('col', '[A-Za-z_]+');
+        Route::put('/{id}', [AttachmentController::class, 'update'])->whereNumber('id');
+        Route::delete('/{id}', [AttachmentController::class, 'delete'])->whereNumber('id');
     });
 
     Route::group(['prefix' => 'document'], function () {

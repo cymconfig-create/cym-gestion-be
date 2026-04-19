@@ -51,7 +51,7 @@ class CreateCompanyService extends Service
             $this->validatorService->validate($request, $model->getRulesCreate());
         } catch (ValidationException $e) {
             $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
-            return $this->resolve(true, $$messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
+            return $this->resolve(true, $messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
         }
 
         // Verificar existencia por NIT
@@ -91,9 +91,15 @@ class CreateCompanyService extends Service
             }
 
             // Subir documentos de empresa dinámicamente
-            if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $createdBy, $companyId)) {
+            try {
+                if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $createdBy, $companyId)) {
+                    DB::rollBack();
+                    return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+                }
+            } catch (ValidationException $e) {
                 DB::rollBack();
-                return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+                $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
+                return $this->resolve(true, $messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
             }
 
             DB::commit();
@@ -103,7 +109,8 @@ class CreateCompanyService extends Service
             return $this->resolve(false, CompanyConstants::CREATED, $company, Constants::CODE_CREATED);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error creating company', ['exception' => $e]);
+            return $this->resolve(true, CompanyConstants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 

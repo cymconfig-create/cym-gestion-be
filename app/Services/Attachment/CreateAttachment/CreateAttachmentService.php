@@ -8,6 +8,7 @@ use App\Services\Shared\UploadAttachmentForDocumentCodeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CreateAttachmentService extends Service
 {
@@ -26,9 +27,14 @@ class CreateAttachmentService extends Service
         DB::beginTransaction();
 
         // Subir documentos dinámicamente
-        if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $created_by)) {
+        try {
+            if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $created_by)) {
+                DB::rollBack();
+                return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+            }
+        } catch (ValidationException $e) {
             DB::rollBack();
-            return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+            return $this->resolve(true, Constants::ERROR_VALIDATING, $e->errors(), Constants::CODE_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -37,7 +43,7 @@ class CreateAttachmentService extends Service
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error creating Attachment: ' . $e->getMessage());
-            return $this->resolve(true, Constants::NOT_CREATED, $e->getMessage(), Constants::CODE_INTERNAL_SERVER_ERROR);
+            return $this->resolve(true, Constants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 }

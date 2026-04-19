@@ -74,7 +74,7 @@ class CreateAttachmentFromService extends Service
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error creating Attachment: ' . $e->getMessage());
-            return $this->resolve(true, Constants::NOT_CREATED, $e->getMessage(), Constants::CODE_INTERNAL_SERVER_ERROR);
+            return false;
         }
     }
 }

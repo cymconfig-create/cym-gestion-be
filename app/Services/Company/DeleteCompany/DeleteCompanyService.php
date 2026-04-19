@@ -7,6 +7,7 @@ use App\Services\Attachment\DeleteAttachment\DeleteAttachmentService;
 use App\Util\Constants;
 use App\Services\Service;
 use App\Util\CompanyConstants;
+use Illuminate\Support\Facades\Log;
 
 class DeleteCompanyService extends Service
 {
@@ -43,7 +44,8 @@ class DeleteCompanyService extends Service
 
             return $this->resolve(false, CompanyConstants::DELETED, '', Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+            Log::error('Error deleting company', ['exception' => $e]);
+            return $this->resolve(true, CompanyConstants::NOT_DELETED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         }
     }
 }

@@ -3,9 +3,18 @@
 namespace App\Repositories;
 
 use App\Models\User;
+use App\Util\Constants;
+use InvalidArgumentException;
 
 class UserRepository extends Repository
 {
+    private const ALLOWED_FILTER_COLUMNS = [
+        'user_id',
+        'name',
+        'profile_id',
+        'employee_id',
+        'status',
+    ];
 
     /**
      * Obtiene todos los usuarios.
@@ -33,6 +42,7 @@ class UserRepository extends Repository
      */
     public function findBy($column, $value)
     {
+        $this->assertAllowedColumn($column);
         return User::where($column, $value)->first();
     }
 
@@ -44,6 +54,7 @@ class UserRepository extends Repository
      */
     public function findByAll($column, $value)
     {
+        $this->assertAllowedColumn($column);
         return User::where($column, $value)->get();
     }
 
@@ -54,6 +65,7 @@ class UserRepository extends Repository
      */
     public function findByAttributes($attributes)
     {
+        $this->assertAllowedAttributes($attributes);
         return User::where($attributes)->first();
     }
 
@@ -64,6 +76,21 @@ class UserRepository extends Repository
      */
     public function findByAllAttributes($attributes)
     {
+        $this->assertAllowedAttributes($attributes);
         return User::where($attributes)->get();
+    }
+
+    private function assertAllowedColumn(string $column): void
+    {
+        if (!in_array($column, self::ALLOWED_FILTER_COLUMNS, true)) {
+            throw new InvalidArgumentException(Constants::INVALID_FILTER_COLUMN);
+        }
+    }
+
+    private function assertAllowedAttributes(array $attributes): void
+    {
+        foreach (array_keys($attributes) as $column) {
+            $this->assertAllowedColumn($column);
+        }
     }
 }

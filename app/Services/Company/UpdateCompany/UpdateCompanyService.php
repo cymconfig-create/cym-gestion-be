@@ -109,7 +109,8 @@ class UpdateCompanyService extends Service
             return $this->resolve(false, CompanyConstants::UPDATED, $company, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error updating company', ['exception' => $e]);
+            return $this->resolve(true, CompanyConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 

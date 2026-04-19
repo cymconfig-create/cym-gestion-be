@@ -12,6 +12,7 @@ use App\Services\Shared\ValidatorService;
 use App\Traits\LoadEmployeeRelationshipsTrait;
 use App\Util\EmployeeConstants;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 
@@ -91,7 +92,8 @@ class UpdateEmployeeService extends Service
             return $this->resolve(false, EmployeeConstants::UPDATED, $employee, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error updating employee', ['exception' => $e]);
+            return $this->resolve(true, EmployeeConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 

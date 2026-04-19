@@ -93,7 +93,7 @@ class Company extends Model
 		return [
 			'nit' => 'required|string|not_in:null',
 			'name' => 'required|string|not_in:null',
-			'email' => 'required|email|string'
+			'email_sgsst' => 'nullable|email|string'
 		];
 	}
 

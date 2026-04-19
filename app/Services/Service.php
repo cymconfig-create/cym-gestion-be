@@ -21,6 +21,11 @@ class Service
         // Usa el estado por defecto si no se proporciona uno.
         $status = $status === null ? Constants::CODE_SUCCESS : $status;
 
+        if ($error && $status >= Constants::CODE_INTERNAL_SERVER_ERROR) {
+            $message = Constants::INTERNAL_SERVER_ERROR_MESSAGE;
+            $data = Constants::NOT_DATA;
+        }
+
         // Crea el array de datos para el cuerpo JSON de la respuesta.
         $responseData = [
             "error" => $error,

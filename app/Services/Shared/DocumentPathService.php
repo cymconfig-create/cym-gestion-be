@@ -30,7 +30,7 @@ class DocumentPathService extends Service
 
     private function generateFileName($name, $file)
     {
-        $extension = $file->getClientOriginalExtension();
+        $extension = $file->guessExtension() ?: $file->getClientOriginalExtension();
         $timestamp = now()->format('Y_m_d_H_i_s');
         $cleaned = $this->cleanString($name);
 

@@ -55,12 +55,12 @@ class DeleteAttachmentService extends Service
                 // Paso 5: Capturar cualquier excepción durante la operación de BD y revertir
                 DB::rollBack();
                 Log::error(Constants::LOG_ERROR_DB_TRANSACTION . $e->getMessage());
-                return $this->resolve(true, Constants::NOT_DELETED, Constants::DATABASE_TRANSACTION_FAILED . $e->getMessage(), Constants::CODE_BAD_REQUEST);
+                return $this->resolve(true, Constants::NOT_DELETED, Constants::DATABASE_TRANSACTION_FAILED, Constants::CODE_BAD_REQUEST);
             }
         } catch (\Exception $e) {
             // Paso 6: Capturar errores durante la eliminación del archivo
             Log::error(Constants::LOG_ERROR_DELETING_FILE . $e->getMessage());
-            return $this->resolve(true, Constants::NOT_DELETED, Constants::ERROR_DELETING_FILE . $e->getMessage(), Constants::CODE_BAD_REQUEST);
+            return $this->resolve(true, Constants::NOT_DELETED, Constants::ERROR_DELETING_FILE, Constants::CODE_BAD_REQUEST);
         }
     }
 }

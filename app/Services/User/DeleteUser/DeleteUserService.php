@@ -36,7 +36,8 @@ class DeleteUserService extends Service
 
             return $this->resolve(true, UserConstants::NOT_DELETED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error deleting user', ['exception' => $e]);
+            return $this->resolve(true, UserConstants::NOT_DELETED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 }

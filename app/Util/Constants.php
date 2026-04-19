@@ -46,6 +46,11 @@ class Constants
     const DATABASE_TRANSACTION_FAILED = "La transacción de la base de datos falló";
     const LOG_ERROR_DELETING_FILE = "Error al eliminar el archivo: ";
     const LOG_ERROR_DB_TRANSACTION = "Error durante la transacción de la base de datos: ";
+    const INTERNAL_SERVER_ERROR_MESSAGE = "Ocurrió un error interno. Intente nuevamente.";
+    const INVALID_FILTER_COLUMN = "Columna de filtro no permitida";
+    const INVALID_FILTER_ATTRIBUTES = "Hay atributos de filtro no permitidos";
+    const INVALID_FILE_TYPE = "El tipo de archivo no está permitido";
+    const INVALID_FILE_SIZE = "El archivo supera el tamaño máximo permitido";
 
     const NOT_DATA  = null;
     const NOT_MESSAGE  = null;

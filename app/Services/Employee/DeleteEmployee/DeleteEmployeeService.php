@@ -7,6 +7,7 @@ use App\Services\Attachment\DeleteAttachment\DeleteAttachmentService;
 use App\Util\Constants;
 use App\Services\Service;
 use App\Util\EmployeeConstants;
+use Illuminate\Support\Facades\Log;
 
 class DeleteEmployeeService extends Service
 {
@@ -44,7 +45,8 @@ class DeleteEmployeeService extends Service
 
             return $this->resolve(false, EmployeeConstants::DELETED, Constants::NOT_DATA, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+            Log::error('Error deleting employee', ['exception' => $e]);
+            return $this->resolve(true, EmployeeConstants::NOT_DELETED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         }
     }
 }

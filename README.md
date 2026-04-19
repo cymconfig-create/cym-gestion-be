@@ -1,66 +1,186 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CyM Gestión — Backend (API REST)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend del sistema de gestión **CyM Gestión SGSST**, construido con **Laravel 10** y autenticación mediante **JWT**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requisitos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Herramienta | Versión mínima |
+|-------------|---------------|
+| PHP         | 8.1+          |
+| Composer    | 2.x           |
+| MySQL       | 8.0+          |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Despliegue local
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Instalar dependencias
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+composer install --ignore-platform-reqs
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+> Si el sistema tiene PHP 8.5+, el flag `--ignore-platform-reqs` es necesario porque algunas dependencias declaran soporte hasta PHP 8.4.
 
-## Laravel Sponsors
+### 2. Configurar el entorno
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+cp .env.example .env
+```
 
-### Premium Partners
+Editar `.env` con las credenciales de la base de datos:
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=cymgestionsgsst
+DB_USERNAME=root
+DB_PASSWORD=tu_password
+```
 
-## Contributing
+### 3. Crear la base de datos en MySQL
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```sql
+CREATE DATABASE cymgestionsgsst CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
 
-## Code of Conduct
+### 4. Ejecutar migraciones y seeders
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan migrate --force
+php artisan db:seed --force
+```
 
-## Security Vulnerabilities
+Los seeders crean:
+- Los 4 perfiles de usuario (Super Admin, Administrador, Responsable SGSST, Gerencia)
+- 2 usuarios base (`willinton`, `elazo`)
+- Menús, submenús y permisos por perfil
+- Documentos y selectores del sistema
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 5. Generar el JWT secret
 
-## License
+```bash
+php artisan jwt:secret
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 6. Crear el enlace de almacenamiento
+
+```bash
+php artisan storage:link
+```
+
+### 7. Levantar el servidor
+
+```bash
+php artisan serve --port=8000
+```
+
+La API queda disponible en: `http://localhost:8000`
+
+---
+
+## Usuarios disponibles (seeders)
+
+| Usuario    | Perfil     | Contraseña      |
+|------------|------------|-----------------|
+| willinton  | Super Admin | (hash — desconocida) |
+| elazo      | Super Admin | (hash — desconocida) |
+
+Para crear un usuario con contraseña conocida:
+
+```bash
+php artisan tinker --execute="
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+DB::table('users')->insert([
+    'name' => 'admin',
+    'password' => Hash::make('admin123'),
+    'profile_id' => 1,
+    'status' => 1,
+    'created_by' => 'system',
+    'updated_by' => 'system',
+    'created_at' => now(),
+    'updated_at' => now(),
+]);
+"
+```
+
+---
+
+## Arquitectura
+
+### Stack
+
+- **Framework:** Laravel 10
+- **Autenticación:** JWT (`tymon/jwt-auth v2`)
+- **Base de datos:** MySQL 8 con Eloquent ORM
+- **Almacenamiento de archivos:** filesystem local (`storage/app/public`)
+
+### Estructura de directorios relevante
+
+```
+cym-back/
+├── app/
+│   ├── Http/
+│   │   └── Controllers/       # Controladores de la API
+│   └── Models/                # Modelos Eloquent
+├── database/
+│   ├── migrations/            # 27 migraciones (tablas + llaves foráneas)
+│   └── seeders/               # Datos iniciales del sistema
+├── routes/
+│   └── api.php                # Definición de todos los endpoints
+└── storage/
+    └── app/public/            # Archivos subidos (attachments)
+```
+
+### Modelos principales
+
+| Modelo        | Descripción                              |
+|---------------|------------------------------------------|
+| `User`        | Usuarios del sistema                     |
+| `Profile`     | Perfiles/roles (SUPER, ADMIN, SGSST, GEREN) |
+| `Company`     | Empresas gestionadas                     |
+| `Employee`    | Empleados de cada empresa                |
+| `Document`    | Documentos requeridos por empleado       |
+| `Attachment`  | Archivos adjuntos a documentos           |
+| `Conversation`/ `Message` | Sistema de mensajería interna |
+| `Event`       | Actividades del mes / calendario         |
+| `Menu` / `SubMenu` / `MenuProfile` | Control de menú por perfil |
+| `Selector`    | Catálogos de valores (listas desplegables) |
+| `Action` / `ActionProfile` | Acciones permitidas por perfil |
+
+### Perfiles de usuario
+
+| Código | Nombre               | Descripción                                      |
+|--------|----------------------|--------------------------------------------------|
+| SUPER  | Super Admin          | Acceso total al sistema                          |
+| ADMIN  | Administrador        | Administración general                           |
+| SGSST  | Responsable del SGSST| Gestión del sistema de seguridad y salud         |
+| GEREN  | Gerencia             | Solo visualización                               |
+
+### Endpoints de la API
+
+Todos los endpoints excepto `/api/auth/authenticate` requieren el header:
+
+```
+Authorization: Bearer {token}
+```
+
+| Prefijo             | Métodos              | Descripción                        |
+|---------------------|----------------------|------------------------------------|
+| `POST /api/auth/authenticate` | —          | Login (devuelve JWT)               |
+| `GET /api/auth/me`  | —                    | Usuario autenticado                |
+| `GET /api/auth/refresh` | —                | Refrescar token                    |
+| `GET /api/auth/logout` | —                 | Cerrar sesión                      |
+| `/api/user`         | GET, POST, PUT, DELETE | CRUD de usuarios                 |
+| `/api/profile`      | GET                  | Consulta de perfiles               |
+| `/api/company`      | GET, POST, PUT, DELETE | CRUD de empresas                 |
+| `/api/employee`     | GET, POST, PUT, DELETE | CRUD de empleados                |
+| `/api/document`     | GET                  | Consulta de documentos             |
+| `/api/attachment`   | GET, POST, PUT, DELETE | CRUD de adjuntos + descarga      |
+| `/api/conversation` | GET, POST, PUT, DELETE | Sistema de mensajería            |
+| `/api/event`        | GET, POST, PUT, DELETE | Actividades del mes              |
+| `/api/selector`     | GET                  | Catálogos del sistema              |

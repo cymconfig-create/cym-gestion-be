@@ -11,9 +11,15 @@ use App\Services\Service;
 use App\Services\Shared\DocumentPathService;
 use App\Services\Shared\ValidatorService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class UpdateAttachmentService extends Service
 {
+    private const ALLOWED_FILE_MIMES = 'pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv';
+    private const MAX_FILE_SIZE_KB = 10240; // 10 MB
+
     private $repository;
     private $createAttachmentFromService;
     private $documentPathService;
@@ -66,6 +72,7 @@ class UpdateAttachmentService extends Service
             if (!$uploadedFile->isValid()) {
                 return $this->resolve(true, Constants::NOT_CREATED, Constants::ERROR_UPLOADING_FILE, Constants::CODE_BAD_REQUEST);
             }
+            $this->validateUploadedFile($uploadedFile);
 
             try {
                 // Obtener códigos de la empresa y documento
@@ -83,8 +90,11 @@ class UpdateAttachmentService extends Service
                 // Guardar el nuevo archivo y actualizar la ruta
                 $pathWithFile = $this->documentPathService->saveDocumentInPath($codeCompany, $codeDocument, $newName, $uploadedFile);
                 $model->route_file = $pathWithFile;
+            } catch (ValidationException $e) {
+                return $this->resolve(true, Constants::ERROR_VALIDATING, $e->errors(), Constants::CODE_UNPROCESSABLE_ENTITY);
             } catch (\Exception $e) {
-                return $this->resolve(true, Constants::NOT_CREATED, $e->getMessage(), Constants::CODE_INTERNAL_SERVER_ERROR);
+                Log::error('Error updating attachment file', ['exception' => $e]);
+                return $this->resolve(true, Constants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
             }
         }
 
@@ -107,6 +117,11 @@ class UpdateAttachmentService extends Service
     ) {
         if (!$uploadedFile->isValid()) {
             return $this->resolve(true, Constants::NOT_CREATED, Constants::ERROR_UPLOADING_FILE, Constants::CODE_BAD_REQUEST);
+        }
+        try {
+            $this->validateUploadedFile($uploadedFile);
+        } catch (ValidationException $e) {
+            return $this->resolve(true, Constants::ERROR_VALIDATING, $e->errors(), Constants::CODE_UNPROCESSABLE_ENTITY);
         }
 
         // Buscar si ya existe el documento asociado a la empresa
@@ -146,7 +161,8 @@ class UpdateAttachmentService extends Service
                 ? $newPath
                 : $this->resolve(true, Constants::NOT_UPDATED, '', Constants::CODE_BAD_REQUEST);
         } catch (\Exception $e) {
-            return $this->resolve(true, Constants::NOT_CREATED, $e->getMessage(), Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error updating attachment from service', ['exception' => $e]);
+            return $this->resolve(true, Constants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -171,5 +187,17 @@ class UpdateAttachmentService extends Service
             $document->name,
             $uploadedFile
         );
+    }
+
+    private function validateUploadedFile($uploadedFile): void
+    {
+        $validator = Validator::make(
+            ['route_file' => $uploadedFile],
+            ['route_file' => 'file|mimes:' . self::ALLOWED_FILE_MIMES . '|max:' . self::MAX_FILE_SIZE_KB]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
     }
 }

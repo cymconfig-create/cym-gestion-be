@@ -91,9 +91,15 @@ class CreateEmployeeService extends Service
             $company->save();
 
             // Subir documentos de empleado dinámicamente
-            if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $createdBy, $companyId, $employeeId)) {
+            try {
+                if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $createdBy, $companyId, $employeeId)) {
+                    DB::rollBack();
+                    return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+                }
+            } catch (ValidationException $e) {
                 DB::rollBack();
-                return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
+                $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
+                return $this->resolve(true, $messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
             }
 
             DB::commit();
@@ -103,7 +109,8 @@ class CreateEmployeeService extends Service
             return $this->resolve(false, EmployeeConstants::CREATED, $employee, Constants::CODE_CREATED);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            Log::error('Error creating employee', ['exception' => $e]);
+            return $this->resolve(true, EmployeeConstants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 }

@@ -83,7 +83,7 @@ class UpdateUserService extends Service
             return $this->resolve(false, UserConstants::UPDATED, Constants::NOT_DATA, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->resolve(true, $e->getMessage(), Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
+            return $this->resolve(true, UserConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }
 }

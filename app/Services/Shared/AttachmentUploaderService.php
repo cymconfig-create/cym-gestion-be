@@ -11,9 +11,14 @@ use App\Repositories\CompanyRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class AttachmentUploaderService extends Service
 {
+    private const ALLOWED_FILE_MIMES = 'pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv';
+    private const MAX_FILE_SIZE_KB = 10240; // 10 MB
+
     private $repository;
     private $documentPathService;
     private $documentRepository;
@@ -59,6 +64,7 @@ class AttachmentUploaderService extends Service
         }
 
         try {
+            $this->validateUploadedFile($uploadedFile);
             DB::beginTransaction();
 
             $company = $this->companyRepository->find($model->company_id);
@@ -81,6 +87,18 @@ class AttachmentUploaderService extends Service
             DB::rollBack();
             Log::error('Error creating Attachment: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    private function validateUploadedFile(UploadedFile $uploadedFile): void
+    {
+        $validator = Validator::make(
+            ['route_file' => $uploadedFile],
+            ['route_file' => 'file|mimes:' . self::ALLOWED_FILE_MIMES . '|max:' . self::MAX_FILE_SIZE_KB]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
         }
     }
 }
