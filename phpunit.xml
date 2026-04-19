@@ -31,7 +31,6 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="MONGODB_URI" value=""/>
         <env name="MONGODB_DATABASE" value="cymDatabase"/>
     </php>
 </phpunit>
