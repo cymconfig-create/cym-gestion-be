@@ -10,6 +10,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\Ia\DocumentCompletionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -98,6 +99,10 @@ Route::group(["middleware" => ["auth:api"]], function () {
         Route::get('/{col}/{id}', [AttachmentController::class, 'findByAll'])->where('col', '[A-Za-z_]+');
         Route::put('/{id}', [AttachmentController::class, 'update'])->whereNumber('id');
         Route::delete('/{id}', [AttachmentController::class, 'delete'])->whereNumber('id');
+    });
+
+    Route::group(['prefix' => 'ia'], function () {
+        Route::get('/documents/upload-completion', [DocumentCompletionController::class, 'uploadCompletion']);
     });
 
     Route::group(['prefix' => 'document'], function () {

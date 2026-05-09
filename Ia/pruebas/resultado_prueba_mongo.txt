@@ -1,0 +1,23 @@
+=== Pruebas MongoDB / IA — ejecución real (2026-04-18) ===
+
+Entorno de referencia: Windows, PHP 8.4 ZTS, extensión mongodb 2.2.x, librería Composer mongodb/mongodb ^2.0.
+
+--- Dependencias ---
+composer update mongodb/mongodb --ignore-platform-reqs
+(En algunos entornos hace falta --ignore-platform-reqs si falta ext-fileinfo u otras extensiones.)
+
+--- Comandos Artisan ---
+php artisan ia:mongo-init-schemas --dry-run
+php artisan ia:mongo-init-schemas
+
+--- Salida típica tras crear colecciones en Atlas (base MONGODB_DATABASE, ej. cymDatabase) ---
+[exists] actions
+[exists] action_profiles
+... (16 colecciones en total: actions, action_profiles, attachments, companies, conversation_user, conversations, documents, employees, events, menu_profiles, menus, messages, profiles, selectors, sub_menus, users)
+Listo. Base de datos Mongo: cymDatabase
+
+--- PHPUnit ---
+php artisan test --testsuite=Ia
+Tres pruebas: registro de colecciones, dry-run del comando, e integración con Atlas si MONGODB_URI está en .env (sin vaciar MONGODB_URI en phpunit.xml para desarrollo local).
+
+Nota: no versionar credenciales; rotar contraseña de Atlas si la URI se expuso.
