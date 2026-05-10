@@ -36,12 +36,12 @@ class UpdateEventService extends Service
             return $this->resolve(true, Constants::NOT_CREATED, reset($errors), Constants::CODE_BAD_REQUEST);
         }
 
-        $update = $this->repository->update($model);
+        $update = $this->repository->updateMongo($model);
 
-        if (reset($update)) {
+        if ($update) {
             return $this->resolve(false, Constants::CREATED);
         } else {
-            return $this->resolve(true, Constants::NOT_CREATED, end($update), Constants::CODE_BAD_REQUEST);
+            return $this->resolve(true, Constants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         }
     }
 }

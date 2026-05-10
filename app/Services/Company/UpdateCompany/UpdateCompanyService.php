@@ -10,7 +10,6 @@ use App\Services\Service;
 use App\Services\Shared\ValidatorService;
 use App\Services\Attachment\UpdateAttachment\UpdateAttachmentService;
 use App\Services\Shared\ErrorResponseFormatter;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -65,12 +64,9 @@ class UpdateCompanyService extends Service
         }
 
         try {
-            DB::beginTransaction(); // Iniciar la transacción aquí
-
-            $updated = $this->repository->update($model);
+            $updated = $this->repository->updateMongo($model);
 
             if (!$updated) {
-                DB::rollBack();
                 // El mensaje de error debería ser NOT_UPDATED, no NOT_CREATED para una actualización
                 return $this->resolve(true, Constants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
             }
@@ -80,7 +76,8 @@ class UpdateCompanyService extends Service
             if ($request->has(CompanyConstants::LEGAL_REPRESENTATIVE_ID) && !is_null($request->input(CompanyConstants::LEGAL_REPRESENTATIVE_ID))) {
                 // se recalcula la cantidad total de empleados para esta empresa.
                 // Esto asegura que quantity_employees refleje el conteo real.
-                $model->quantity_employees = $model->employees()->count();
+                $model->quantity_employees = $this->employeeRepository->countByCompanyId((int) $companyId);
+                $this->repository->updateMongo($model);
 
                 // Actualizar el company_id del empleado representante legal
                 $legalRepresentativeId = $request->input(CompanyConstants::LEGAL_REPRESENTATIVE_ID);
@@ -90,25 +87,21 @@ class UpdateCompanyService extends Service
                     // Solo actualiza si el company_id actual del empleado es diferente
                     if ($employee->company_id !== $companyId) {
                         $employee->company_id = $companyId;
-                        $employee->save();
+                        $this->employeeRepository->updateMongo($employee);
                     }
                 }
             }
 
             // Subir/actualizar documentos de empresa dinámicamente
             if (!$this->updateCompanyDocuments($request, $companyId, $updateBy)) {
-                DB::rollBack();
                 return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
             }
-
-            DB::commit();
 
             $company = $this->repository->find($companyId);
             $this->loadCompanyRelationships($company);
             // El código de respuesta para una actualización exitosa es CODE_SUCCESS, no CODE_CREATED
             return $this->resolve(false, CompanyConstants::UPDATED, $company, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error updating company', ['exception' => $e]);
             return $this->resolve(true, CompanyConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }

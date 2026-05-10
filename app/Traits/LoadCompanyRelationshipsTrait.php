@@ -12,7 +12,7 @@ trait LoadCompanyRelationshipsTrait
      */
     private function loadCompanyRelationships($data)
     {
-        if ($data) {
+        if ($data && method_exists($data, 'load')) {
             $data->load(
                 'legalRepresentative',
                 'systemManager',

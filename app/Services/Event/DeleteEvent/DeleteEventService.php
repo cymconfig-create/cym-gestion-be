@@ -23,12 +23,12 @@ class DeleteEventService extends Service
             return $this->resolve(true, Constants::OBJECT_NOT_FOUND, Constants::NOT_DATA, Constants::CODE_SUCCESS_NO_CONTENT);
         }
 
-        $delete = $this->repository->delete($model);
+        $delete = $this->repository->deleteMongo($model);
 
-        if (reset($delete)) {
+        if ($delete) {
             return $this->resolve(false, Constants::DELETED, '', Constants::CODE_SUCCESS);
         } else {
-            return $this->resolve(true, Constants::NOT_DELETED, end($delete), Constants::CODE_BAD_REQUEST);
+            return $this->resolve(true, Constants::NOT_DELETED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         }
     }
 }

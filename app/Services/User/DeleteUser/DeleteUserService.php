@@ -28,7 +28,7 @@ class DeleteUserService extends Service
         }
 
         try {
-            $deleted = $this->repository->delete($model);
+            $deleted = $this->repository->deleteMongo($model);
 
             if ($deleted) {
                 return $this->resolve(false, UserConstants::DELETED, Constants::NOT_DATA, Constants::CODE_SUCCESS);

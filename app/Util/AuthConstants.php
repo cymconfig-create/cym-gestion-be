@@ -10,6 +10,7 @@ class AuthConstants
 
     // ATRIBUTES
     public const NAME = "name";
+    public const EMAIL = "email";
     public const PASSWORD = "password";
     public const TOKEN = 'token';
     public const PROFILE = 'profile';

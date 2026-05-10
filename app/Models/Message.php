@@ -35,7 +35,7 @@ class Message extends Model
 			$rules['subject'] = 'required|string|max:255';
 			$rules['type'] = 'required|in:message,ticket';
 			$rules['participants'] = 'required|array|min:1';
-			$rules['participants.*'] = 'exists:users,user_id';
+			$rules['participants.*'] = 'integer';
 		}
 
 		return $rules;

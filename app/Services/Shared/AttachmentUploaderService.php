@@ -9,7 +9,6 @@ use App\Services\Shared\DocumentPathService;
 use App\Repositories\DocumentRepository;
 use App\Repositories\CompanyRepository;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -65,8 +64,6 @@ class AttachmentUploaderService extends Service
 
         try {
             $this->validateUploadedFile($uploadedFile);
-            DB::beginTransaction();
-
             $company = $this->companyRepository->find($model->company_id);
             $codeCompany = $company ? $company->code : 'ADMIN';
             $codeDocument = $this->documentRepository->find($documentId)->code;
@@ -74,17 +71,13 @@ class AttachmentUploaderService extends Service
             $pathWithFile = $this->documentPathService->saveDocumentInPath($codeCompany, $codeDocument, $newName, $uploadedFile);
 
             $model->route_file = $pathWithFile;
-            $save = $this->repository->save($model);
+            $save = $this->repository->saveMongo($model);
 
             if (!$save) {
-                DB::rollBack();
                 return false;
             }
-
-            DB::commit();
             return true;
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error creating Attachment: ' . $e->getMessage());
             return false;
         }

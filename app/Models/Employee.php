@@ -121,7 +121,7 @@ class Employee extends Model
 		return [
 			'full_name' => 'required|string',
 			'selector_identification' => 'required|int',
-			'identification_number' => 'required|string|unique:employees,identification_number,' . $this->employee_id . ',employee_id',
+			'identification_number' => 'required|string',
 			'user_id' => 'nullable|int',
 			'email' => 'required|email|string'
 		];

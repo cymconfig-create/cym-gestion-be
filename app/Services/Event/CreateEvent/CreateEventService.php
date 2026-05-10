@@ -32,12 +32,12 @@ class CreateEventService extends Service
             return $this->resolve(true, Constants::ERROR_VALIDATING, reset($errors), Constants::CODE_UNPROCESSABLE_ENTITY);
         }
 
-        $save = $this->repository->save($model);
+        $save = $this->repository->saveMongo($model);
 
-        if (reset($save)) {
+        if ($save) {
             return $this->resolve(false, Constants::CREATED, '', Constants::CODE_CREATED);
         } else {
-            return $this->resolve(true, Constants::NOT_CREATED, end($save), Constants::CODE_BAD_REQUEST);
+            return $this->resolve(true, Constants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
         }
     }
 }

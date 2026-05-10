@@ -7,8 +7,6 @@ use App\Repositories\MessageRepository;
 use App\Services\Service;
 use App\Util\Constants;
 use App\Util\MessagingConstants;
-use Illuminate\Support\Facades\DB;
-use App\Models\Message;
 use App\Services\Shared\ErrorResponseFormatter;
 use Illuminate\Validation\ValidationException;
 use App\Services\Shared\ValidatorService;
@@ -40,11 +38,14 @@ class MessagingService extends Service
      */
     public function createConversation(array $data)
     {
-        $model = new Message();
-
         try {
-            // Validamos usando las reglas del modelo de Mensaje para una conversación inicial.
-            $this->validatorService->validate($data, $model->getRulesCreate(true));
+            $this->validatorService->validate($data, [
+                'subject' => 'required|string|max:255',
+                'type' => 'required|in:message,ticket',
+                'participants' => 'required|array|min:1',
+                'participants.*' => 'integer',
+                'body' => 'required|string',
+            ]);
         } catch (ValidationException $e) {
             $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
             return $this->resolve(
@@ -55,48 +56,29 @@ class MessagingService extends Service
             );
         }
 
-        DB::beginTransaction();
         try {
             $user = auth()->user();
             $conversations = [];
 
             foreach ($data[MessagingConstants::PARTICIPANTS] as $participantId) {
-                // 1. Crear conversación para ESTE participante
                 $conversation = $this->conversationRepository->create([
-                    MessagingConstants::COMPANY_ID => $user->company_id,
+                    MessagingConstants::COMPANY_ID => $user->company_id ?? null,
                     MessagingConstants::SUBJECT => $data[MessagingConstants::SUBJECT],
                     MessagingConstants::TYPE => $data[MessagingConstants::TYPE],
                     MessagingConstants::CREATED_BY => $user->user_id,
-                    MessagingConstants::LAST_MESSAGE_AT => now(),
+                    MessagingConstants::LAST_MESSAGE_AT => now()->toDateTimeString(),
                 ]);
 
-                // 2. Mensaje inicial
-                $message = $this->messageRepository->create([
+                $this->messageRepository->create([
                     MessagingConstants::CONVERSATION_ID => $conversation->conversation_id,
                     MessagingConstants::USER_ID => $user->user_id,
                     MessagingConstants::BODY => $data[MessagingConstants::BODY],
                 ]);
 
-                // 3. Asociar usuarios: remitente + este participante
-                $conversation->users()->attach([$user->user_id, $participantId]);
-
-                // 4. Opcional: cargar relaciones para la respuesta
-                $conversation->load('user');
-                if ($conversation->user) {
-                    $conversation->user->makeHidden([
-                        MessagingConstants::CREATED_BY,
-                        MessagingConstants::UPDATED_BY,
-                        MessagingConstants::CREATED_AT,
-                        MessagingConstants::UPDATED_AT,
-                        MessagingConstants::PROFILE_ID,
-                        MessagingConstants::STATUS
-                    ]);
-                }
+                $this->conversationRepository->addParticipants($conversation->conversation_id, [$user->user_id, (int) $participantId]);
 
                 $conversations[] = $conversation;
             }
-
-            DB::commit();
 
             return $this->resolve(
                 false,
@@ -105,7 +87,6 @@ class MessagingService extends Service
                 Constants::CODE_CREATED
             );
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->resolve(
                 true,
                 $e->getMessage(),
@@ -135,8 +116,7 @@ class MessagingService extends Service
         }
 
         try {
-            $model = new Message();
-            $this->validatorService->validate($data, $model->getRulesCreate());
+            $this->validatorService->validate($data, ['body' => 'required|string']);
         } catch (ValidationException $e) {
             $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
             return $this->resolve(
@@ -147,23 +127,17 @@ class MessagingService extends Service
             );
         }
 
-        DB::beginTransaction();
         try {
-            // 1. Crear el nuevo mensaje
             $message = $this->messageRepository->create([
                 MessagingConstants::CONVERSATION_ID => $conversationId,
                 MessagingConstants::USER_ID => auth()->user()->user_id,
                 MessagingConstants::BODY => $data[MessagingConstants::BODY],
             ]);
 
-            // 2. Actualizar el timestamp de la conversación
-            $conversation->last_message_at = now();
-            $conversation->save();
-
-            // 3. Marcar la conversación como leída para el usuario actual
+            $this->conversationRepository->updateConversation($conversationId, [
+                MessagingConstants::LAST_MESSAGE_AT => now()->toDateTimeString(),
+            ]);
             $this->conversationRepository->markAsRead($conversationId, auth()->user()->user_id);
-
-            DB::commit();
 
             return $this->resolve(
                 false,
@@ -172,7 +146,6 @@ class MessagingService extends Service
                 Constants::CODE_SUCCESS
             );
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->resolve(
                 true,
                 $e->getMessage(),
@@ -212,11 +185,9 @@ class MessagingService extends Service
             );
         }
 
-        DB::beginTransaction();
         try {
-            $conversation->status = $status;
-            $conversation->save();
-            DB::commit();
+            $this->conversationRepository->updateConversation($conversationId, [MessagingConstants::STATUS => $status]);
+            $conversation = $this->conversationRepository->find($conversationId);
 
             return $this->resolve(
                 false,
@@ -225,7 +196,6 @@ class MessagingService extends Service
                 Constants::CODE_SUCCESS
             );
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->resolve(
                 true,
                 $e->getMessage(),
@@ -324,8 +294,7 @@ class MessagingService extends Service
 
         $userId = auth()->user()->user_id;
 
-        // Verificar si el usuario autenticado está en la conversación
-        if (!$conversation->users()->where(MessagingConstants::USERS_USER_ID, $userId)->exists()) {
+        if (!$this->conversationRepository->userIsParticipant($conversationId, $userId)) {
             return $this->resolve(
                 true,
                 MessagingConstants::FORBIDDEN,
@@ -334,24 +303,7 @@ class MessagingService extends Service
             );
         }
 
-        $conversation->load('user', 'messages.user');
-        $conversation->user->makeHidden([
-            MessagingConstants::CREATED_BY,
-            MessagingConstants::UPDATED_BY,
-            MessagingConstants::CREATED_AT,
-            MessagingConstants::UPDATED_AT
-        ]);
-        // Oculta los campos solo del objeto de usuario dentro de cada mensaje
-        $conversation->messages->each(function ($message) {
-            if ($message->user) {
-                $message->user->makeHidden([
-                    MessagingConstants::CREATED_BY,
-                    MessagingConstants::UPDATED_BY,
-                    MessagingConstants::CREATED_AT,
-                    MessagingConstants::UPDATED_AT
-                ]);
-            }
-        });
+        $conversation->messages = $this->messageRepository->getConversationMessages($conversationId)->values()->all();
         $this->conversationRepository->markAsRead($conversationId, $userId);
 
         return $this->resolve(
