@@ -42,6 +42,14 @@ class Event extends Model
 		'id_company'
 	];
 
+	public $rulesCreate = [
+		'name' => 'required|string|max:255',
+		'responsible_event' => 'required|string|max:255',
+		'event_date' => 'nullable|date',
+		'description' => 'required|string',
+		'id_company' => 'required|integer',
+	];
+
 	public function company()
 	{
 		return $this->belongsTo(Company::class, 'id_company');

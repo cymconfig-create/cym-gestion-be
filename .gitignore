@@ -17,3 +17,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+/Ia/pruebas/php_mongodb*.zip
+/Ia/pruebas/php_mongodb_extract/

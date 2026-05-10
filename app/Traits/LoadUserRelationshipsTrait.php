@@ -12,7 +12,7 @@ trait LoadUserRelationshipsTrait
      */
     private function loadUserRelationships($data)
     {
-        if ($data) {
+        if ($data && method_exists($data, 'load')) {
             $data->load(['profile', 'employee.company']);
         }
         return $data;

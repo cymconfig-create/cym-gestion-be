@@ -3,6 +3,7 @@
 namespace App\Services\Employee\UpdateEmployee;
 
 use App\Repositories\EmployeeRepository;
+use App\Repositories\CompanyRepository;
 use App\Services\Document\DocumentService;
 use App\Services\Attachment\UpdateAttachment\UpdateAttachmentService;
 use App\Util\Constants;
@@ -11,7 +12,6 @@ use App\Services\Shared\ErrorResponseFormatter;
 use App\Services\Shared\ValidatorService;
 use App\Traits\LoadEmployeeRelationshipsTrait;
 use App\Util\EmployeeConstants;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
@@ -25,19 +25,22 @@ class UpdateEmployeeService extends Service
     private $documentService;
     private $updateAttachmentService;
     private $errorResponseFormatter;
+    private $companyRepository;
 
     public function __construct(
         EmployeeRepository $repository,
         ValidatorService $validatorService,
         UpdateAttachmentService $updateAttachmentService,
         DocumentService $documentService,
-        ErrorResponseFormatter $errorResponseFormatter
+        ErrorResponseFormatter $errorResponseFormatter,
+        CompanyRepository $companyRepository
     ) {
         $this->repository = $repository;
         $this->validatorService = $validatorService;
         $this->updateAttachmentService = $updateAttachmentService;
         $this->documentService = $documentService;
         $this->errorResponseFormatter = $errorResponseFormatter;
+        $this->companyRepository = $companyRepository;
     }
 
     public function update(Request $request, $employeeId) // Indicar el tipo Request
@@ -60,38 +63,31 @@ class UpdateEmployeeService extends Service
         }
 
         try {
-            DB::beginTransaction();
-
-            $updated = $this->repository->update($model);
+            $updated = $this->repository->updateMongo($model);
 
             if (!$updated) {
-                DB::rollBack();
                 return $this->resolve(true, EmployeeConstants::NOT_UPDATED, $updated, Constants::CODE_BAD_REQUEST);
             }
 
             // Actualizar cantidad de empleados en la empresa
-            $company = $model->company; // Relación definida en el modelo Employee
+            $company = $this->companyRepository->find((int) $model->company_id);
 
             if ($company) {
-                $totalEmployees = $company->employees()->count(); // Relación en modelo Company
+                $totalEmployees = $this->repository->countByCompanyId((int) $company->company_id);
                 $company->quantity_employees = $totalEmployees;
-                $company->save();
+                $this->companyRepository->updateMongo($company);
             }
 
             // Subir/actualizar documentos de empleado dinámicamente
             if (!$this->updateEmployeeDocuments($request, $company->company_id, $employeeId, $model->updated_by)) {
-                DB::rollBack();
                 return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
             }
-
-            DB::commit();
 
             // Re-obtener el modelo actualizado y cargar las relaciones usando el trait
             $employee = $this->repository->find($employeeId);
             $this->loadEmployeeRelationships($employee);
             return $this->resolve(false, EmployeeConstants::UPDATED, $employee, Constants::CODE_SUCCESS);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error updating employee', ['exception' => $e]);
             return $this->resolve(true, EmployeeConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }

@@ -3,16 +3,18 @@
 namespace App\Services\User\UpdateUser;
 
 use App\Repositories\UserRepository;
+use App\Repositories\ProfileRepository;
+use App\Models\User;
 use App\Util\Constants;
 use App\Services\Service;
 use App\Services\Shared\ValidatorService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Services\Shared\EncryptorService;
 use App\Services\Shared\ErrorResponseFormatter;
 use App\Services\Shared\ValidatorPasswordService;
 use App\Traits\LoadUserRelationshipsTrait;
 use App\Util\UserConstants;
+use Illuminate\Support\Facades\Log;
 
 class UpdateUserService extends Service
 {
@@ -23,15 +25,18 @@ class UpdateUserService extends Service
     private $encryptorService;
     private $validatorPasswordService;
     private $errorResponseFormatter;
+    private $profileRepository;
 
     public function __construct(
         UserRepository $repository,
+        ProfileRepository $profileRepository,
         ValidatorService $validatorService,
         EncryptorService $encryptorService,
         ValidatorPasswordService $validatorPasswordService,
         ErrorResponseFormatter $errorResponseFormatter
     ) {
         $this->repository = $repository;
+        $this->profileRepository = $profileRepository;
         $this->validatorService = $validatorService;
         $this->encryptorService = $encryptorService;
         $this->validatorPasswordService = $validatorPasswordService;
@@ -40,21 +45,40 @@ class UpdateUserService extends Service
 
     public function update($request, $id)
     {
-        // Validamos si existe el registro
         $model = $this->repository->find($id);
-        $model->updated_by = auth()->user()->name;
-
         if (!$model) {
             return $this->resolve(true, UserConstants::NOT_FOUND, Constants::NOT_DATA, Constants::CODE_SUCCESS_NO_CONTENT);
         }
+        $model->updated_by = auth()->user()->name;
 
         $model->fill($request->all());
 
+        $targetProfileId = (int) ($model->profile_id ?? 0);
+        $targetProfile = $targetProfileId > 0 ? $this->profileRepository->find($targetProfileId) : null;
+        if (($targetProfile->code ?? null) !== 'SUPER') {
+            $model->all_companies = false;
+        } else {
+            $model->all_companies = (bool) ($request->input('all_companies', $model->all_companies ?? false));
+        }
+
         try {
-            $this->validatorService->validate($request, $model->getRulesCreate());
+            $rules = (new User())->getRulesCreate();
+            $rules[UserConstants::PASSWORD] = 'nullable|string|min:6';
+            $this->validatorService->validate($request, $rules);
         } catch (ValidationException $e) {
             $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
             return $this->resolve(true, $messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
+        }
+
+        $existingByName = $this->repository->findBy('name', $model->name);
+        if ($existingByName && (int) $existingByName->user_id !== (int) $model->user_id) {
+            return $this->resolve(true, 'El nombre de usuario ya existe.', Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
+        }
+        if ($model->email) {
+            $existingByEmail = $this->repository->findBy('email', $model->email);
+            if ($existingByEmail && (int) $existingByEmail->user_id !== (int) $model->user_id) {
+                return $this->resolve(true, 'El correo ya existe.', Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
+            }
         }
 
         $requestPassword = $request->input(UserConstants::PASSWORD);
@@ -65,24 +89,21 @@ class UpdateUserService extends Service
         }
 
         try {
-            DB::beginTransaction();
-
-            $updated = $this->repository->update($model);
+            $updated = $this->repository->updateMongo($model);
 
             if (!$updated) {
-                DB::rollBack();
                 return $this->resolve(true, UserConstants::NOT_UPDATED, $updated, Constants::CODE_BAD_REQUEST);
             }
 
-            $userId = $model->user_id;
-
-            DB::commit();
-
-            $user = $this->repository->find($userId);
-            $this->loadUserRelationships($user);
             return $this->resolve(false, UserConstants::UPDATED, Constants::NOT_DATA, Constants::CODE_SUCCESS);
-        } catch (\Exception $e) {
-            DB::rollBack();
+        } catch (\Throwable $e) {
+            Log::error('UpdateUserService::update failed', [
+                'user_id' => $id,
+                'payload' => $request->all(),
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
             return $this->resolve(true, UserConstants::NOT_UPDATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }
     }

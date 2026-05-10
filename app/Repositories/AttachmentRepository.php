@@ -2,9 +2,11 @@
 
 namespace App\Repositories;
 
-use App\Models\Attachment;
+use App\Ia\Mongo\MongoClientFactory;
 use App\Util\Constants;
 use InvalidArgumentException;
+use MongoDB\BSON\UTCDateTime;
+use MongoDB\Collection;
 
 class AttachmentRepository extends Repository
 {
@@ -20,55 +22,111 @@ class AttachmentRepository extends Repository
         'updated_at',
     ];
 
+    private function collection(): Collection
+    {
+        return MongoClientFactory::database()->selectCollection('attachments');
+    }
+
+    private function map(?object $doc): ?object
+    {
+        if (!$doc) return null;
+        $row = (array) $doc;
+        unset($row['_id']);
+        return (object) $row;
+    }
+
+    private function many(iterable $docs)
+    {
+        $rows = [];
+        foreach ($docs as $doc) $rows[] = $this->map($doc);
+        return collect($rows);
+    }
+
     public function all()
     {
-        return Attachment::all();
+        return $this->many($this->collection()->find([], ['sort' => ['attachment_id' => 1]]));
     }
 
     public function find($value)
     {
-        return Attachment::find($value);
+        return $this->map($this->collection()->findOne(['attachment_id' => (int) $value]));
     }
 
     public function findBy($column, $value)
     {
         $this->assertAllowedColumn($column);
-        return Attachment::where($column, $value)->first();
+        return $this->map($this->collection()->findOne([$column => $this->normalizeValue($column, $value)]));
     }
 
     public function findByAll($column, $value)
     {
         $this->assertAllowedColumn($column);
-        $query = Attachment::query();
-
-        // Comprobamos si el valor que viene es la cadena "null"
+        $query = [];
         if ($value === 'null') {
-            $query->whereNull($column);
+            $query[$column] = null;
         } else {
-            $query->where($column, $value);
+            $query[$column] = $this->normalizeValue($column, $value);
         }
 
-        return $query->get();
+        return $this->many($this->collection()->find($query, ['sort' => ['attachment_id' => 1]]));
     }
 
     public function findByAttributes($attributes)
     {
         $this->assertAllowedAttributes($attributes);
-        $response = null;
+        $query = [];
         foreach ($attributes as $column => $value) {
-            $response = $response == null ? Attachment::where($column, $value) : $response->where($column, $value);
+            $query[$column] = $this->normalizeValue($column, $value);
         }
-        return $response == null ? $response : $response->first();
+        return $this->map($this->collection()->findOne($query));
     }
 
     public function findByAllAttributes($attributes)
     {
         $this->assertAllowedAttributes($attributes);
-        $response = null;
+        $query = [];
         foreach ($attributes as $column => $value) {
-            $response = $response == null ? Attachment::where($column, $value) : $response->where($column, $value);
+            $query[$column] = $this->normalizeValue($column, $value);
         }
-        return $response == null ? $response : $response->get();
+        return $this->many($this->collection()->find($query, ['sort' => ['attachment_id' => 1]]));
+    }
+
+    public function nextAttachmentId(): int
+    {
+        $last = $this->collection()->findOne([], ['sort' => ['attachment_id' => -1], 'projection' => ['attachment_id' => 1]]);
+        return $last ? ((int) $last->attachment_id + 1) : 1;
+    }
+
+    public function saveMongo(object $model): bool
+    {
+        $attrs = method_exists($model, 'getAttributes') ? $model->getAttributes() : (array) $model;
+        if (empty($attrs['attachment_id'])) {
+            $attrs['attachment_id'] = $this->nextAttachmentId();
+            $model->attachment_id = $attrs['attachment_id'];
+        }
+        $now = new UTCDateTime((int) (microtime(true) * 1000));
+        $attrs['created_at'] = $attrs['created_at'] ?? $now;
+        $attrs['updated_at'] = $now;
+        $result = $this->collection()->insertOne($attrs);
+        return $result->isAcknowledged();
+    }
+
+    public function updateMongo(object $model): bool
+    {
+        $attrs = method_exists($model, 'getAttributes') ? $model->getAttributes() : (array) $model;
+        $id = (int) ($attrs['attachment_id'] ?? 0);
+        if ($id <= 0) return false;
+        $attrs['updated_at'] = new UTCDateTime((int) (microtime(true) * 1000));
+        $result = $this->collection()->updateOne(['attachment_id' => $id], ['$set' => $attrs]);
+        return $result->isAcknowledged();
+    }
+
+    public function deleteMongo(object $model): bool
+    {
+        $id = (int) (($model->attachment_id ?? 0));
+        if ($id <= 0) return false;
+        $result = $this->collection()->deleteOne(['attachment_id' => $id]);
+        return $result->isAcknowledged();
     }
 
     private function assertAllowedColumn(string $column): void
@@ -83,5 +141,13 @@ class AttachmentRepository extends Repository
         foreach (array_keys($attributes) as $column) {
             $this->assertAllowedColumn($column);
         }
+    }
+
+    private function normalizeValue(string $column, mixed $value): mixed
+    {
+        if (in_array($column, ['attachment_id', 'document_id', 'company_id', 'employee_id'], true)) {
+            return $value === null ? null : (int) $value;
+        }
+        return $value;
     }
 }

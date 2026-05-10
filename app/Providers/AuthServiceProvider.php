@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Auth\MongoUserProvider;
+use Illuminate\Support\Facades\Auth;
 // use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -21,6 +23,8 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Auth::provider('mongo', function ($app, array $config) {
+            return new MongoUserProvider($app['hash']);
+        });
     }
 }

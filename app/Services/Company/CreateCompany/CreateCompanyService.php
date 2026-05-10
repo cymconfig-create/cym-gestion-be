@@ -12,7 +12,6 @@ use App\Services\Shared\ValidatorService;
 use App\Services\Shared\UploadAttachmentForDocumentCodeService;
 use App\Traits\LoadCompanyRelationshipsTrait;
 use App\Util\CompanyConstants;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
@@ -65,11 +64,9 @@ class CreateCompanyService extends Service
         $model->code = $this->generateUniqueCode($model->name);
 
         try {
-            DB::beginTransaction();
-            $save = $this->repository->save($model);
+            $save = $this->repository->saveMongo($model);
 
             if (!$save) {
-                DB::rollBack();
                 return $this->resolve(true, CompanyConstants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
             }
 
@@ -78,7 +75,7 @@ class CreateCompanyService extends Service
             // Inicializa quantity_employees si legal_representative_id está presente
             if ($request->has(CompanyConstants::LEGAL_REPRESENTATIVE_ID) && !is_null($request->input(CompanyConstants::LEGAL_REPRESENTATIVE_ID))) {
                 $model->quantity_employees = 1;
-                $model->save(); // Guardar el modelo actualizado con la cantidad de empleados
+                $this->repository->updateMongo($model);
 
                 // Actualizar el company_id del empleado representante legal
                 $legalRepresentativeId = $request->input(CompanyConstants::LEGAL_REPRESENTATIVE_ID);
@@ -86,29 +83,24 @@ class CreateCompanyService extends Service
 
                 if ($employee) {
                     $employee->company_id = $companyId;
-                    $employee->save();
+                    $this->employeeRepository->updateMongo($employee);
                 }
             }
 
             // Subir documentos de empresa dinámicamente
             try {
                 if (!$this->uploadAttachmentForDocumentCodeService->uploadAttachmentForDocumentCode($request, $createdBy, $companyId)) {
-                    DB::rollBack();
                     return $this->resolve(true, Constants::ERROR_UPLOADING_FILE, Constants::NOT_DATA, Constants::CODE_BAD_REQUEST);
                 }
             } catch (ValidationException $e) {
-                DB::rollBack();
                 $messageError = $this->errorResponseFormatter->formatValidationErrors($e);
                 return $this->resolve(true, $messageError, Constants::NOT_DATA, Constants::CODE_UNPROCESSABLE_ENTITY);
             }
-
-            DB::commit();
 
             $company = $this->repository->find($companyId);
             $this->loadCompanyRelationships($company);
             return $this->resolve(false, CompanyConstants::CREATED, $company, Constants::CODE_CREATED);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error creating company', ['exception' => $e]);
             return $this->resolve(true, CompanyConstants::NOT_CREATED, Constants::NOT_DATA, Constants::CODE_INTERNAL_SERVER_ERROR);
         }

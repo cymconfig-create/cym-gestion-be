@@ -48,5 +48,5 @@ php artisan ia:mongo-init-schemas --no-validators
 
 ## Requisitos
 
-- Extensión PHP **mongodb** habilitada.
-- Paquete **mongodb/mongodb** instalado (`composer install`).
+- Extensión PHP **mongodb** 2.x habilitada (compatible con PHP 8.2+).
+- Paquete Composer **mongodb/mongodb** **^2.0** (alineado con la extensión 2.x).

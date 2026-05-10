@@ -19,10 +19,28 @@ class AuthService extends Service
 
     public function authenticate(Request $request)
     {
-        $credentials = $request->only(AuthConstants::NAME, AuthConstants::PASSWORD);
+        $emailOrUsername = $request->input(AuthConstants::EMAIL);
+        $password = $request->input(AuthConstants::PASSWORD);
+
+        if (!$emailOrUsername || !$password) {
+            return $this->resolve(true, AuthConstants::CREDENTIALS_INVALID, null, Constants::CODE_UNAUTHORIZED);
+        }
+
+        $credentials = [
+            AuthConstants::EMAIL => $emailOrUsername,
+            AuthConstants::PASSWORD => $password,
+        ];
 
         if (!$token = JWTAuth::attempt($credentials)) {
-            return $this->resolve(true, AuthConstants::CREDENTIALS_INVALID, null, Constants::CODE_UNAUTHORIZED);
+            // Compatibilidad temporal con usuarios antiguos que aún autenticaban con "name".
+            $fallbackCredentials = [
+                AuthConstants::NAME => $emailOrUsername,
+                AuthConstants::PASSWORD => $password,
+            ];
+
+            if (!$token = JWTAuth::attempt($fallbackCredentials)) {
+                return $this->resolve(true, AuthConstants::CREDENTIALS_INVALID, null, Constants::CODE_UNAUTHORIZED);
+            }
         }
 
         return $this->resolve(false, AuthConstants::TOKEN, $token, Constants::CODE_SUCCESS);
@@ -30,8 +48,10 @@ class AuthService extends Service
 
     public function me()
     {
-        $user = JWTAuth::parseToken()->authenticate()->load(AuthConstants::PROFILE, AuthConstants::EMPLOYEE); // Corrected here
-        $menu_profile = $this->validatorPermissionsService->findMenusByProfile($user->profile_id);
+        $user = JWTAuth::parseToken()->authenticate();
+        $profile = $this->validatorPermissionsService->findProfileByUser((int) $user->profile_id);
+        $user->profile = $profile;
+        $menu_profile = $this->validatorPermissionsService->findMenusByProfile((int) $user->profile_id);
 
         $data = array(
             AuthConstants::USER => $user,

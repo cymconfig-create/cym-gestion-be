@@ -2,10 +2,15 @@
 
 namespace App\Repositories;
 
-use App\Models\Selector;
+use App\Ia\Mongo\MongoClientFactory;
+use MongoDB\Collection;
 
 class SelectorRepository extends Repository
 {
+    private function selectors(): Collection
+    {
+        return MongoClientFactory::database()->selectCollection('selectors');
+    }
 
     /**
      * Recupera todos los selectores y los organiza en una estructura jerárquica
@@ -15,8 +20,13 @@ class SelectorRepository extends Repository
      */
     function all(): array
     {
-        // Obtener todos los selectores de la base de datos
-        $selectors = Selector::where('status', 1)->get();
+        $selectorDocs = $this->selectors()->find(['status' => true], ['sort' => ['order' => 1, 'code' => 1]]);
+        $selectors = [];
+        foreach ($selectorDocs as $doc) {
+            $item = (array) $doc;
+            unset($item['_id']);
+            $selectors[] = (object) $item;
+        }
         $fathers = [];
 
         // Primero, iterar para encontrar todos los selectores padre

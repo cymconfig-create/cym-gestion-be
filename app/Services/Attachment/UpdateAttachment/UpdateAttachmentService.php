@@ -99,7 +99,7 @@ class UpdateAttachmentService extends Service
         }
 
         // Actualizar el registro en la base de datos
-        $update = $this->repository->update($model);
+        $update = $this->repository->updateMongo($model);
 
         if ($update) {
             return $this->resolve(false, Constants::UPDATED, $model, Constants::CODE_SUCCESS);
@@ -157,7 +157,7 @@ class UpdateAttachmentService extends Service
                 'route_file' => $newPath,
             ]);
 
-            return $this->repository->update($existingDocument)
+            return $this->repository->updateMongo($existingDocument)
                 ? $newPath
                 : $this->resolve(true, Constants::NOT_UPDATED, '', Constants::CODE_BAD_REQUEST);
         } catch (\Exception $e) {

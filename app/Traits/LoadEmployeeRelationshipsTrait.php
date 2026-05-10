@@ -11,7 +11,7 @@ trait LoadEmployeeRelationshipsTrait
      */
     private function loadEmployeeRelationships($data)
     {
-        if ($data) {
+        if ($data && method_exists($data, 'load')) {
             $data->load(
                 'identificationType',
                 'academicLevel',
