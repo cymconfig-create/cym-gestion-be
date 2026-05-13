@@ -12,6 +12,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\Diagnosis\SgsstDiagnosisController;
 use App\Http\Controllers\Ia\DocumentCompletionController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +29,34 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'auth'], function () {
     Route::post('authenticate', [AuthController::class, 'authenticate']);
+});
+
+Route::post('/ops/sync-mongo-menus', function (Request $request) {
+    $providedKey = $request->query('key') ?: $request->header('X-Ops-Key');
+    $expectedKey = env('OPS_SYNC_KEY');
+
+    abort_unless($expectedKey && hash_equals((string) $expectedKey, (string) $providedKey), 403);
+
+    $results = [];
+    $commands = [
+        ['name' => 'ia:mongo-init-schemas', 'params' => []],
+        ['name' => 'ia:mongo-sync-catalogs-from-sql', 'params' => ['--truncate' => true]],
+        ['name' => 'ia:mongo-sync-users-from-sql', 'params' => ['--truncate' => true]],
+    ];
+
+    foreach ($commands as $command) {
+        $exitCode = Artisan::call($command['name'], $command['params']);
+        $results[] = [
+            'command' => $command['name'],
+            'exit_code' => $exitCode,
+            'output' => trim(Artisan::output()),
+        ];
+    }
+
+    return response()->json([
+        'ok' => true,
+        'results' => $results,
+    ]);
 });
 
 
