@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "ext-mongodb": "^2",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
@@ -66,8 +67,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "suggest": {
-        "ext-mongodb": "Necesaria para conectar con MongoDB Atlas (comando ia:mongo-init-schemas y pruebas de integración)."
-    }
+    "prefer-stable": true
 }
