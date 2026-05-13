@@ -10,6 +10,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\Diagnosis\SgsstDiagnosisController;
 use App\Http\Controllers\Ia\DocumentCompletionController;
 use Illuminate\Support\Facades\Route;
 
@@ -120,5 +121,11 @@ Route::group(["middleware" => ["auth:api"]], function () {
 
     Route::group(['prefix' => 'selector'], function () {
         Route::get('', [SelectorController::class, 'all']);
+    });
+
+    Route::group(['prefix' => 'diagnosis/sgsst'], function () {
+        Route::get('/companies', [SgsstDiagnosisController::class, 'companiesOverview']);
+        Route::get('/companies/{companyId}', [SgsstDiagnosisController::class, 'companyDetail'])->whereNumber('companyId');
+        Route::get('/employees/{employeeId}', [SgsstDiagnosisController::class, 'employeeDetail'])->whereNumber('employeeId');
     });
 });
